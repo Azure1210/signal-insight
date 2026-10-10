@@ -19,17 +19,17 @@
 
 1. 基于已有主题派生（代码里）::
 
-       from signal_insight.theme import get_theme, register_theme
-       register_theme(get_theme("business").derive("acme", main="#E60012"))
+    from signal_insight.theme import get_theme, register_theme
+    register_theme(get_theme("business").derive("acme", main="#E60012"))
 
 2. 写一个 TOML 文件放进项目根的 ``themes/`` 目录，viz 导入时自动注册::
 
-       name = "acme"
-       base = "business"          # 只写和 base 不同的字段
-       main = "#E60012"
-       categorical = ["#E60012", "#1F2937", "#F59E0B", "#10B981", "#6366F1", "#06B6D4"]
-       [rc]
-       "lines.linewidth" = 2.2
+    name = "acme"
+    base = "business"          # 只写和 base 不同的字段
+    main = "#E60012"
+    categorical = ["#E60012", "#1F2937", "#F59E0B", "#10B981", "#6366F1", "#06B6D4"]
+    [rc]
+    "lines.linewidth" = 2.2
 
 3. 直接构造 ``Theme(...)`` 再 ``register_theme``。
 """
@@ -68,8 +68,10 @@ COLOR_ROLES = (
 # 思源系列同一套字形有多个发行名，写其中任何一个都会自动展开成整组别名，
 # 哪台机器装了哪个发行版都能用；Noto * CJK JP 覆盖简体字形，作应急。
 # ---------------------------------------------------------------------- #
-CJK_SANS = ( "Noto Serif CJK SC","Source Han Serif SC")
-CJK_SERIF = ( "Noto Serif CJK SC","Source Han Serif SC")
+CJK_SANS  = ("Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC",
+            "Noto Sans CJK JP", "WenQuanYi Zen Hei")
+CJK_SERIF = ("Noto Serif CJK SC", "Source Han Serif SC", "Noto Serif SC",
+            "Noto Serif CJK JP")
 FALLBACK_FONT = "DejaVu Sans"   # 负号、上下标兜底；matplotlib 自带
 
 # 商业字体黑名单：主题里写了这些名字会直接报错（合规红线，不是审美偏好）

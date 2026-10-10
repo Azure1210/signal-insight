@@ -1,0 +1,29 @@
+[project]
+name = "signal-insight"   # 发行名：pip 用，习惯用短横线
+version = "0.1.0"
+description = "用于快速构建和分析信令数据" # 包的描述
+readme = "README.md" # 项目的说明文件
+requires-python = ">=3.12"
+license = "MIT"
+author = "Azurekite"
+authors = [{ name = "Azurekite", email = "sx12101184@qq.com" }]
+keywords = ["信令数据分析", "pandas", "matplotlib", "teaching"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Education",
+    "Environment :: Console",
+]
+
+dependencies = [
+    "pandas>=3.0.6",
+    "numpy>=2.5.3",
+    "matplotlib>=3.11.2"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.setuptools.packages.find]
+where = ["src"]            # 包在 src/ 下面

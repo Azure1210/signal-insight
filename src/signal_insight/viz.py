@@ -5,16 +5,20 @@
 # @Project    : signal-insight
 # @Author     : Matri
 # @Date       : 2026-10-10 15:00:28
-# @Version    : v1.1.0
+# @Version    : v1.3.0
 # @Description: 统一出图风格：主题切换、业务语义配色、标题区/来源行
 # @ChangeLog:
 #   2026-10-10 15:00:28 | Matri | v1.0.0 | 初始化创建
 #   2026-10-10 16:30:00 | Matri | v1.1.0 | 接入主题系统(theme.py)：default/academic/business 可切换，
 #                                          旧常量 MAIN/RED/AREA_COLOR 等保持可用并随主题同步
+#   2026-10-10 18:00:00 | Matri | v1.2.0 | apply_theme 返回本机实际生效字体并在缺中文字体时提示；新增 GREEN(通过)
+#   2026-10-10 20:00:00 | Matri | v1.3.0 | 切换主题时同步重绑 `from viz import MAIN` 等已导入的颜色常量，
+#                                          旧代码 color=MAIN 不用改成 viz.MAIN；颜色常量加入 __all__
 
 # 配色纪律（所有主题共同遵守）：灰色打底，一种颜色强调一件事，红色只表示警示
 from __future__ import annotations
 
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -25,13 +29,17 @@ from matplotlib.patches import Rectangle
 
 from signal_insight import config
 from signal_insight.theme import (
-    Theme, available_themes, discover_themes, get_theme, register_theme,
+    Theme, available_themes, discover_themes, get_theme, has_cjk,
+    register_theme, resolve_fonts,
 )
 
 __all__ = [
     "apply_theme", "use_theme", "current_theme", "available_themes",
     "register_theme", "get_theme", "Theme", "finish",
-    "AREA_COLOR", "SEG_COLOR", "AREAS",
+    "AREA_COLOR", "SEG_COLOR", "AREAS", "FONTS",
+    # 颜色常量：支持 `from signal_insight.viz import *`，切换主题后同样会被重绑
+    "MAIN", "MAIN_LIGHT", "MAIN_DARK", "MAIN_MID", "GRAY", "GRAY_DARK",
+    "RED", "AMBER", "GREEN", "INK", "MUTED", "FAINT",
 ]
 
 # ---------------------------------------------------------------------- #
@@ -50,12 +58,12 @@ SEG_ROLE: dict[str, str] = {
 }
 
 # 以下模块常量保留旧名字，兼容已有代码；它们会在切换主题时被同步。
-# 注意：`from viz import MAIN` 拿到的是导入那一刻的值，切主题后不会变，
-# 推荐写 `viz.MAIN` 或 `viz.current_theme().main`。
-# AREA_COLOR / SEG_COLOR 是原地更新的同一个 dict，两种导入方式都安全。
+# `viz.MAIN` 和 `from signal_insight.viz import MAIN` 两种写法都会跟着主题变：
+# 切换主题时会把各模块 / notebook 里通过 from-import 拿到的同名常量一起重绑（见 _rebind_imported）。
+# AREA_COLOR / SEG_COLOR / FONTS 是原地更新的同一个对象，天然安全。
 MAIN = MAIN_LIGHT = GRAY = RED = ""
 INK = MUTED = FAINT = ""
-MAIN_DARK = MAIN_MID = GRAY_DARK = AMBER = ""
+MAIN_DARK = MAIN_MID = GRAY_DARK = AMBER = GREEN = ""
 FONTS: list[str] = []
 AREA_COLOR: dict[str, str] = {}
 SEG_COLOR: dict[str, str] = {}
@@ -63,20 +71,62 @@ SEG_COLOR: dict[str, str] = {}
 _LEGACY = {
     "MAIN": "main", "MAIN_LIGHT": "main_light", "MAIN_DARK": "main_dark",
     "MAIN_MID": "main_mid", "GRAY": "gray", "GRAY_DARK": "gray_dark",
-    "RED": "alert", "AMBER": "warn", "INK": "ink", "MUTED": "muted", "FAINT": "faint",
+    "RED": "alert", "AMBER": "warn", "GREEN": "ok", "INK": "ink", "MUTED": "muted", "FAINT": "faint",
 }
 
 _current: Theme = get_theme("default")
 
 
+def _namespaces() -> list[dict]:
+    """可能 from-import 了颜色常量的命名空间：所有已加载模块 + 当前调用栈上的全局命名空间。
+
+    Jupyter / IPython 的 notebook 命名空间就是 sys.modules['__main__']，
+    调用栈那一路是兜底（例如 exec 出来的、没进 sys.modules 的命名空间）。
+    """
+    me = globals()
+    seen: set[int] = {id(me)}
+    spaces: list[dict] = []
+    for mod in list(sys.modules.values()):
+        d = getattr(mod, "__dict__", None)
+        if isinstance(d, dict) and id(d) not in seen:
+            seen.add(id(d))
+            spaces.append(d)
+    frame = sys._getframe(1)
+    while frame is not None:
+        d = frame.f_globals
+        if id(d) not in seen:
+            seen.add(id(d))
+            spaces.append(d)
+        frame = frame.f_back
+    return spaces
+
+
+def _rebind_imported(old: dict[str, str], new: dict[str, str]) -> None:
+    """把别处 `from viz import MAIN` 得到的旧值换成新值。
+
+    只有“名字相同且对象就是上次导出的那一个（is）”才替换，
+    所以用户自己定义的同名变量、以及 `from viz import MAIN as M` 这种改名导入都不会被误改。
+    """
+    # old 为空串是导入时的占位值，不参与重绑（空串是单例，可能误伤别处同名变量）
+    changed = {k: v for k, v in new.items() if old.get(k) and old[k] is not v}
+    if not changed:
+        return
+    for d in _namespaces():
+        for name, value in changed.items():
+            if d.get(name) is old[name]:
+                d[name] = value
+
+
 def _activate(theme: Theme) -> None:
     """把主题同步到模块常量与语义映射（不改 rcParams）。"""
-    global _current, FONTS
+    global _current
     _current = theme
     g = globals()
-    for const, role in _LEGACY.items():
-        g[const] = getattr(theme, role)
-    FONTS = list(theme.fonts)
+    old = {const: g[const] for const in _LEGACY}
+    new = {const: getattr(theme, role) for const, role in _LEGACY.items()}
+    g.update(new)
+    _rebind_imported(old, new)
+    FONTS[:] = resolve_fonts(theme.fonts)          # 原地更新，导入的 FONTS 也跟着变
     AREA_COLOR.clear()
     AREA_COLOR.update({k: theme.resolve(r) for k, r in AREA_ROLE.items()})
     SEG_COLOR.clear()
@@ -92,13 +142,17 @@ def apply_theme(theme: str | Theme | None = None) -> list[str]:
 
     theme 可以是主题名（'default' / 'academic' / 'business' / 自定义）或 Theme 对象；
     不传则用 config.THEME（可被环境变量 SIGNAL_THEME 覆盖）。
-    返回字体列表（与旧版返回值保持一致）。
+    返回本机实际生效的字体列表（已展开思源别名、过滤未安装、末尾 DejaVu Sans 兜底），
+    一个开源中文字体都没有时打印提示——这时请安装思源字体，不要改用系统商业字体。
     """
     t = get_theme(theme if theme is not None else config.THEME)
     t.register_cmaps()
-    plt.rcParams.update(t.rc_params())  # type: ignore[arg-type]  # matplotlib 对 update 键名标注过严，这里键都是合法 rcParams 名
+    plt.rcParams.update(t.rc_params())  # type: ignore[arg-type]  # matplotlib 对 update 键名标注过严，运行时接受任意合法 rcParams 键
     _activate(t)
-    return list(t.fonts)
+    if not has_cjk(FONTS):
+        print("⚠️ 本机没有课程用的开源中文字体（思源黑体 / 思源宋体），中文会显示为方框。"
+            "请安装 Source Han Sans SC / Noto Sans CJK SC 后重启内核。")
+    return list(FONTS)
 
 
 @contextmanager

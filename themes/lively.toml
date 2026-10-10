@@ -1,0 +1,38 @@
+# 活泼主题：取自 风格.html 中 data-theme="lively"（“现有课件的配色：圆角、分区上色”）
+# 放在项目根 themes/ 目录下，导入 viz 时自动注册；用法 viz.apply_theme("lively")
+name = "lively"
+base = "business"
+description = "活泼：课件配色，蓝色主调、粉色点睛、分区上色"
+
+# —— 语义色（对应 html 的 CSS 变量）——
+main = "#3E8EDE"         # --visited / --choice-bg 主蓝
+main_dark = "#1F5FA6"    # --tone-primary-stroke
+main_mid = "#8DBCEB"     # 主蓝与浅蓝之间的过渡
+main_light = "#EEF5FD"   # --tone-primary-fill / --icon-box
+gray = "#C9D3E1"         # --node-stroke
+gray_dark = "#8591A7"    # --tone-neutral-stroke
+alert = "#D9534F"        # --error：仍然只表示警示
+warn = "#C06A22"         # --tone-warm-stroke
+ok = "#23806F"           # --tone-mint-stroke：通过
+ink = "#2A3550"          # --ink
+muted = "#55617A"        # --ink-2
+faint = "#8591A7"        # --ink-3
+
+# —— 画布 ——
+background = "#FFFFFF"   # --stage-bg
+grid = "#E2E8F1"         # --rule
+edge = "#B9C3D3"         # --line
+tick = "#55617A"         # --ink-2
+
+# —— 色板：主蓝、点睛粉(--accent)、信号薄荷(--signal)，再接分区色 warm / violet / mint ——
+categorical = ["#3E8EDE", "#E66A8D", "#3DB29F", "#C06A22", "#5A4BB8", "#23806F"]
+sequential = ["#F7FAFE", "#D6E7F9", "#8DBCEB", "#3E8EDE", "#1F5FA6"]
+diverging = ["#E66A8D", "#F5C0CF", "#F4F6FA", "#8DBCEB", "#1F5FA6"]
+
+# —— 字体：html 的 --font-ui 是 Noto Sans SC，matplotlib 里叫 Noto Sans CJK SC ——
+
+
+[rc]
+"lines.linewidth" = 1.8          # --stroke-w
+"lines.solid_capstyle" = "round"
+"lines.solid_joinstyle" = "round"

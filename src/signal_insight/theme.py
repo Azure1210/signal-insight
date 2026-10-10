@@ -5,12 +5,14 @@
 # @Project    : signal-insight
 # @Author     : Matri
 # @Date       : 2026-10-10 16:30:00
-# @Version    : v1.0.0
+# @Version    : v1.1.0
 # @Description: 可视化主题：一个主题 = 一组语义色 + 分类色板 + 连续/发散色图 + 字体 + rcParams 补丁。
 #               本模块只管“主题是什么、怎么注册/查找/加载”，不碰具体业务图，
 #               业务里的语义映射（区域、客群 → 颜色角色）放在 viz.py。
 # @ChangeLog:
 #   2026-10-10 16:30:00 | Matri | v1.0.0 | 初始化创建：default / academic / business 三套内置主题
+#   2026-10-10 18:00:00 | Matri | v1.1.0 | 对齐《图表规范》：字体别名展开 + DejaVu Sans 兜底、禁用商业字体、
+#                                          新增 ok(通过绿) 角色、academic 连续色图改单色渐变、business 字号回到规范值
 
 """
 扩展主题的三种方式（由轻到重）：
@@ -22,12 +24,12 @@
 
 2. 写一个 TOML 文件放进项目根的 ``themes/`` 目录，viz 导入时自动注册::
 
-    name = "acme"
-    base = "business"          # 只写和 base 不同的字段
-    main = "#E60012"
-    categorical = ["#E60012", "#1F2937", "#F59E0B", "#10B981", "#6366F1", "#06B6D4"]
-    [rc]
-    "lines.linewidth" = 2.2
+       name = "acme"
+       base = "business"          # 只写和 base 不同的字段
+       main = "#E60012"
+       categorical = ["#E60012", "#1F2937", "#F59E0B", "#10B981", "#6366F1", "#06B6D4"]
+       [rc]
+       "lines.linewidth" = 2.2
 
 3. 直接构造 ``Theme(...)`` 再 ``register_theme``。
 """
@@ -47,6 +49,7 @@ from matplotlib.colors import Colormap, LinearSegmentedColormap
 __all__ = [
     "Theme", "register_theme", "get_theme", "available_themes",
     "theme_from_dict", "load_theme", "discover_themes",
+    "resolve_fonts", "has_cjk", "installed_fonts", "CJK_SANS", "CJK_SERIF", "COMMERCIAL_FONTS",
     "DEFAULT", "ACADEMIC", "BUSINESS",
 ]
 
@@ -55,10 +58,64 @@ _HEX = re.compile(r"^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 # 语义色字段：viz 里的 MAIN / RED 等模块常量就是从这些字段同步出来的
 COLOR_ROLES = (
     "main", "main_dark", "main_mid", "main_light",
-    "gray", "gray_dark", "alert", "warn",
+    "gray", "gray_dark", "alert", "warn", "ok",
     "ink", "muted", "faint",
     "background", "grid", "edge", "tick",
 )
+
+# ---------------------------------------------------------------------- #
+# 字体（《图表规范》第 0、3 节）：只用开源字体
+# 思源系列同一套字形有多个发行名，写其中任何一个都会自动展开成整组别名，
+# 哪台机器装了哪个发行版都能用；Noto * CJK JP 覆盖简体字形，作应急。
+# ---------------------------------------------------------------------- #
+CJK_SANS = ( "Noto Serif CJK SC","Source Han Serif SC")
+CJK_SERIF = ( "Noto Serif CJK SC","Source Han Serif SC")
+FALLBACK_FONT = "DejaVu Sans"   # 负号、上下标兜底；matplotlib 自带
+
+# 商业字体黑名单：主题里写了这些名字会直接报错（合规红线，不是审美偏好）
+COMMERCIAL_FONTS = frozenset(n.lower() for n in (
+    "Microsoft YaHei", "Microsoft YaHei UI", "微软雅黑", "SimHei", "黑体",
+    "SimSun", "NSimSun", "宋体", "新宋体", "KaiTi", "楷体", "FangSong", "仿宋",
+    "PingFang SC", "PingFang TC", "苹方", "Heiti SC", "Heiti TC", "STHeiti",
+    "Songti SC", "STSong", "STKaiti", "STFangsong", "Hiragino Sans GB",
+    "Times New Roman", "Arial", "Helvetica", "Helvetica Neue", "Calibri",
+    "Cambria", "Segoe UI", "Verdana", "Tahoma", "Georgia",
+))
+
+
+def installed_fonts() -> set[str]:
+    """matplotlib 能找到的字体族名。"""
+    from matplotlib import font_manager
+    return {f.name for f in font_manager.fontManager.ttflist}
+
+
+def _expand(name: str) -> tuple[str, ...]:
+    for group in (CJK_SANS, CJK_SERIF):
+        if name in group:
+            return group
+    return (name,)
+
+
+def resolve_fonts(fonts: tuple[str, ...] | list[str]) -> list[str]:
+    """主题字体 → 本机实际生效的 font.family 列表。
+
+    1. 思源字体展开成整组别名；
+    2. 末尾补上开源黑体链（衬线中文缺失时退到黑体，而不是方框）；
+    3. 只保留本机已安装的，最后加 DejaVu Sans 兜底。
+    写进 font.family（而不是 font.sans-serif），matplotlib 才会逐字回退。
+    """
+    wanted: list[str] = []
+    for name in [*fonts, *CJK_SANS]:
+        for alias in _expand(name):
+            if alias not in wanted:
+                wanted.append(alias)
+    have = installed_fonts()
+    effective = [f for f in wanted if f in have and f != FALLBACK_FONT]
+    return [*effective, FALLBACK_FONT]
+
+
+def has_cjk(fonts: list[str]) -> bool:
+    return any(f in CJK_SANS or f in CJK_SERIF for f in fonts)
 
 
 @dataclass(frozen=True)
@@ -77,6 +134,7 @@ class Theme:
     gray_dark: str = "#8E99A6"
     alert: str = "#D64545"         # 只表示警示（原 RED）
     warn: str = "#B7791F"          # 次级提醒（原 AMBER）
+    ok: str = "#3B8C66"            # 通过（状态色：通过绿 / 警告黄 / 不通过红）
     ink: str = "#1F2937"           # 标题
     muted: str = "#6B7280"         # 副标题
     faint: str = "#9CA3AF"         # 来源行
@@ -100,7 +158,7 @@ class Theme:
         "#D9822B", "#F2CDA6", "#F3F4F6", "#7FB3D9", "#174E73",
     )
 
-    # —— 字体与标题区 ——
+    # —— 字体与标题区：只写开源字体，思源写任一别名即可（见 resolve_fonts） ——
     fonts: tuple[str, ...] = ("TeX Gyre Termes", "Noto Serif CJK SC")
     title_size: float = 16
     subtitle_size: float = 10.5
@@ -136,6 +194,8 @@ class Theme:
             bad.append("categorical(不能为空)")
         if not self.fonts:
             bad.append("fonts(不能为空)")
+        bad += [f"fonts 含商业字体 {f!r}(见《图表规范》第 0 节，改用思源/TeX Gyre)"
+                for f in self.fonts if f.lower() in COMMERCIAL_FONTS]
         if bad:
             raise ValueError(f"主题 {self.name!r} 的配置不合法：{', '.join(bad)}")
 
@@ -186,7 +246,7 @@ class Theme:
     def rc_params(self) -> dict[str, Any]:
         """主题对应的完整 rcParams（公共骨架 + 主题自己的 rc 补丁）。"""
         params: dict[str, Any] = {
-            "font.family": list(self.fonts), "axes.unicode_minus": True,
+            "font.family": resolve_fonts(self.fonts), "axes.unicode_minus": True,
             "axes.spines.top": False, "axes.spines.right": False,
             "axes.spines.left": False,
             "axes.grid": True, "axes.grid.axis": "y",
@@ -224,11 +284,12 @@ ACADEMIC = DEFAULT.derive(
     description="学术规范：Okabe-Ito 色盲友好色板，衬线字体，完整边框与内向刻度",
     main="#0072B2", main_dark="#004C77", main_mid="#56B4E9", main_light="#D6EAF5",
     gray="#BDBDBD", gray_dark="#7F7F7F",
-    alert="#D55E00", warn="#E69F00",
+    alert="#D55E00", warn="#E69F00", ok="#009E73",
     ink="#000000", muted="#404040", faint="#7F7F7F",
     grid="#E0E0E0", edge="#000000", tick="#000000",
     categorical=("#0072B2", "#E69F00", "#009E73", "#CC79A7", "#56B4E9", "#000000"),
-    sequential="cividis",          # 感知均匀、色盲友好、灰度打印单调
+    # 规范要求连续数值用单色渐变：Okabe-Ito 蓝的浅→深，灰度打印明暗单调
+    sequential=("#F0F7FB", "#C6E1F1", "#7FB8DE", "#0072B2", "#004C77"),
     diverging="PuOr",
     fonts=("TeX Gyre Termes", "Noto Serif CJK SC"),
     title_size=13, subtitle_size=10, source_size=8,
@@ -253,21 +314,20 @@ BUSINESS = DEFAULT.derive(
     description="商业规范：明快活泼的品牌色板，无衬线字体，适合汇报/看板",
     main="#2563EB", main_dark="#1E40AF", main_mid="#93B4F5", main_light="#E3ECFD",
     gray="#CBD2DC", gray_dark="#8A94A6",
-    alert="#E5484D", warn="#D97706",
+    alert="#E5484D", warn="#D97706", ok="#10B981",
     ink="#111827", muted="#5B6475", faint="#9AA3B2",
     grid="#EEF1F5", edge="#CBD2DC", tick="#5B6475",
     categorical=("#2563EB", "#FF7A45", "#10B981", "#8B5CF6", "#06B6D4", "#EAB308"),
     sequential=("#EFF5FF", "#BFD4FB", "#7FA6F5", "#3B73EA", "#1E40AF"),
     diverging=("#C2410C", "#FDBA8C", "#F5F6F8", "#93B4F5", "#1E40AF"),
     fonts=("TeX Gyre Termes", "Noto Serif CJK SC"),
-    title_size=17, subtitle_size=11, source_size=8.5,
+    title_size=16, subtitle_size=10.5, source_size=8.5,
     accent_bar=True,
     rc={
         "lines.linewidth": 2.2, "lines.solid_capstyle": "round",
         "axes.titleweight": "bold",
     },
 )
-
 
 # ====================================================================== #
 # 注册表

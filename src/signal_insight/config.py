@@ -1,3 +1,16 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @File       : config.py
+# @Path       : signal-insight/src/signal_insight/config.py
+# @Project    : signal-insight
+# @Author     : Matri
+# @Date       : 2026-10-10 14:53:18
+# @Version    : v1.1.0
+# @Description: 
+# @ChangeLog:
+#   2026-10-10 14:53:18 | Matri | v1.0.0 | 初始化创建
+#   2026-10-10 16:30:00 | Matri | v1.1.0 | 新增主题配置 THEME / THEME_DIR
+import os
 from pathlib import Path
 
 # 项目根的标记文件：根目录里只要有这个文件，就能锁定项目根，
@@ -27,6 +40,12 @@ DB_PATH = DATA_DIR / "signal.db"  # 探索库
 CHECKPOINT_DB = DATA_DIR / "checkpoints.db"
 
 IMAGE_DIR = PROJECT_ROOT / "image"
+
+# 可视化主题：内置 default(原配色) / academic(学术规范) / business(商业规范)。
+# 环境变量 SIGNAL_THEME 可临时覆盖，例如 SIGNAL_THEME=academic python run.py
+THEME = os.environ.get("SIGNAL_THEME", "default")
+# 自定义主题目录：放进去的 *.toml 会在导入 viz 时自动注册（目录不存在则忽略）
+THEME_DIR = PROJECT_ROOT / "themes"
 
 # 口径常量：
 UTC_OFFSET_HOURS = 8

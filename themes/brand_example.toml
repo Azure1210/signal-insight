@@ -1,0 +1,16 @@
+# 企业品牌主题示例：放在项目根 themes/ 目录下，导入 viz 时自动注册。
+# 只需写和 base 不同的字段，可用字段见 src/signal_insight/theme.py 的 Theme。
+name = "brand_example"
+base = "business"
+description = "示例：在商业主题基础上换成品牌红"
+
+main = "#C8102E"
+main_dark = "#8E0B21"
+main_mid = "#E8798A"
+main_light = "#FBE3E7"
+alert = "#7F1D1D"      # 品牌主色是红时，警示色要换成别的明显色
+categorical = ["#C8102E", "#1F2937", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6"]
+sequential = ["#FDF2F4", "#F6C3CC", "#E8798A", "#C8102E", "#8E0B21"]
+
+[rc]
+"lines.linewidth" = 2.4

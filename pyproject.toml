@@ -25,5 +25,5 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-where = ["src"]            # 包在 src/ 下面
+[tool.hatch.build.targets.wheel]
+packages = ["src/signal_insight"]

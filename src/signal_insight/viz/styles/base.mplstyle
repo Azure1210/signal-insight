@@ -1,0 +1,55 @@
+# 项目基线：每次切换主题都先套它，再套主题文件（见 theme.apply_theme）。
+# 为什么要有基线：plt.style.use 只改文件里写到的键。academic 改了刻度方向，
+# 如果不先回到基线，再切 business 时刻度方向会留在 academic 的样子。
+# 规则：任何一个主题改到的键，这里都要写一个值。
+
+# —— 字体：全班统一安装，只写这三个名字；没装会报 findfont，测试 test_style_fonts_installed 会先拦住
+font.family: TeX Gyre Termes, Noto Serif CJK SC, DejaVu Sans
+axes.unicode_minus: True
+mathtext.fontset: dejavusans
+
+# —— 颜色（和 theme.py 的语义色同一套值）
+text.color: "#1F2937"
+axes.labelcolor: "#1F2937"
+axes.titlecolor: "#1F2937"
+axes.edgecolor: "#9CA3AF"
+xtick.color: "#4B5563"
+ytick.color: "#4B5563"
+grid.color: "#E5E7EB"
+figure.facecolor: "#FFFFFF"
+axes.facecolor: "#FFFFFF"
+savefig.facecolor: "#FFFFFF"
+axes.prop_cycle: cycler("color", ["#1D6FA5", "#D9822B", "#3B8C66", "#7A5EA8", "#B04A6A", "#6B7F2A"])
+image.cmap: Blues          # 连续数值用单色渐变
+
+# —— 坐标轴：只留底边，横向网格，网格在数据下面
+axes.spines.top: False
+axes.spines.right: False
+axes.spines.left: False
+axes.linewidth: 0.8
+axes.grid: True
+axes.grid.axis: y
+axes.axisbelow: True
+axes.titleweight: normal
+xtick.major.size: 0
+ytick.major.size: 0
+xtick.major.width: 0.8
+ytick.major.width: 0.8
+xtick.direction: out
+ytick.direction: out
+xtick.top: False
+ytick.right: False
+
+# —— 线、图例、标题区（figure.titlesize 给 finish() 的大标题用）
+lines.linewidth: 1.5
+lines.markersize: 6
+lines.solid_capstyle: projecting
+lines.solid_joinstyle: round
+legend.frameon: False
+legend.fontsize: medium
+figure.titlesize: 16
+figure.titleweight: bold
+
+# —— 分辨率：屏幕 100，保存 300
+figure.dpi: 100
+savefig.dpi: 300

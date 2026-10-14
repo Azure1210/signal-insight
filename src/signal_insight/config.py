@@ -10,6 +10,7 @@
 # @ChangeLog:
 #   2026-10-10 14:53:18 | Matri | v1.0.0 | 初始化创建
 #   2026-10-10 16:30:00 | Matri | v1.1.0 | 新增主题配置 THEME / THEME_DIR
+#   2026-10-14 09:05:00 | Matri | v1.2.0 | 主题改用viz/styles/*.mplstyle,删除THEME_DIR
 import os
 from pathlib import Path
 
@@ -41,11 +42,8 @@ CHECKPOINT_DB = DATA_DIR / "checkpoints.db"
 
 IMAGE_DIR = PROJECT_ROOT / "image"
 
-# 可视化主题：内置 default(原配色) / academic(学术规范) / business(商业规范)。
-# 环境变量 SIGNAL_THEME 可临时覆盖，例如 SIGNAL_THEME=academic python run.py
+# 默认的可视化主题: viz/style/里面的文件.default, academic. business, lively
 THEME = os.environ.get("SIGNAL_THEME", "default")
-# 自定义主题目录：放进去的 *.toml 会在导入 viz 时自动注册（目录不存在则忽略）
-THEME_DIR = PROJECT_ROOT / "themes"
 
 # 口径常量：
 UTC_OFFSET_HOURS = 8

@@ -1,0 +1,13 @@
+# 商业：汇报、看板。色相拉开的明快色板，线条更粗，子图标题加粗。
+axes.prop_cycle: cycler("color", ["#2563EB", "#FF7A45", "#10B981", "#8B5CF6", "#06B6D4", "#EAB308"])
+text.color: "#111827"
+axes.labelcolor: "#111827"
+axes.titlecolor: "#111827"
+axes.edgecolor: "#CBD2DC"
+xtick.color: "#5B6475"
+ytick.color: "#5B6475"
+grid.color: "#EEF1F5"
+
+lines.linewidth: 2.2
+lines.solid_capstyle: round
+axes.titleweight: bold

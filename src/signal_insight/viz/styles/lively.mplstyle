@@ -1,0 +1,13 @@
+# 活泼：取自课件网页 data-theme="lively" 的配色（蓝色主调、粉色点睛）。原 themes/lively.toml。
+axes.prop_cycle: cycler("color", ["#3E8EDE", "#E66A8D", "#3DB29F", "#C06A22", "#5A4BB8", "#23806F"])
+text.color: "#2A3550"
+axes.labelcolor: "#2A3550"
+axes.titlecolor: "#2A3550"
+axes.edgecolor: "#B9C3D3"
+xtick.color: "#55617A"
+ytick.color: "#55617A"
+grid.color: "#E2E8F1"
+
+lines.linewidth: 1.8
+lines.solid_capstyle: round
+axes.titleweight: bold

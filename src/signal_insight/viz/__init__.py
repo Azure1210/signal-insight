@@ -9,7 +9,7 @@
 # @Description: 
 # @ChangeLog:
 #   2026-10-14 08:31:17 | Matri | v1.0.0 | 初始化创建
-"""图表：theme 管主题（语义色、切换主题、标题区），maps 管地图，styles/ 放主题文件。
+"""图表：theme 管主题（语义色、切换主题、标题区），maps 管地图，heatmatrix 管热力矩阵，styles/ 放主题文件。
 
 D02 时这里是 viz.py + theme.py 两个文件；D04 主题改用 .mplstyle 文件，
 数据文件只能跟着"包"一起安装，于是 viz 变成了文件夹。下面这行"重新导出"保证原来的写法一行都不用改：
@@ -19,8 +19,9 @@ D02 时这里是 viz.py + theme.py 两个文件；D04 主题改用 .mplstyle 文
 from .theme import *          # noqa: F401,F403  （theme.py 的 __all__ 决定导出哪些名字）
 from .theme import __all__ as _theme_all
 from . import maps            # noqa: F401  地图用 viz.maps.xxx 调用
+from .heatmatrix import matrix, MatrixPlot   # noqa: F401  热力矩阵：viz.matrix(...)
 
-__all__ = [*_theme_all, "maps"]
+__all__ = [*_theme_all, "maps", "matrix", "MatrixPlot"]
 
 # D02 主题引擎里的这些名字 D04 删掉了。直接报 AttributeError 看不出原因，这里给一句迁移提示。
 _REMOVED = {

@@ -15,6 +15,7 @@
 所以测试时手写几个点就能测；notebook、流水线（D05）、地图（viz.maps）都能直接用。
 """
 from typing import Any, Hashable
+import math
 
 import numpy as np
 import pandas as pd
@@ -59,6 +60,11 @@ def point_in_polygons(lng, lat, polys: dict[str, list[np.ndarray]]) -> np.ndarra
         out[inside & pd.isna(out)] = name
     return out
 
+def _dist_m(lat1, lng1, lat2, lng2):
+    """标量版 haversine（米）。逐点循环里用 math 比 numpy 版快一个数量级。"""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lng2 - lng1) / 2) ** 2
+    return 2 * EARTH_R * math.asin(math.sqrt(a))
 
 if __name__ == '__main__':
     pass

@@ -10,65 +10,65 @@
 # @ChangeLog:
 #   2026-10-16 11:01:15 | Matri | v1.0.0 | 初始化创建
 """停留识别：把每个人按时间排好的信令切成段，时长够的段叫停留。"""
+"""汇总层（dws_）：停留识别（D06）。
 
+纯计算（AGENTS.md 第 4 条）：输入带坐标的信令，输出停留表；多边形、热点由调用方传进来，这里不读库。
+参数从 settings 取，代码里不写业务数字（AGENTS.md 第 8 条）。
+现在汇总层只有一张表，一个文件就够；表多了（超过 3 张或约 300 行）就拆成同名文件夹（AGENTS.md 第 5 条）。
+"""
 import numpy as np
 import pandas as pd
-from .geo import _dist_m
-__all__ = ["find_segments"]
-EARTH_R = 6_371_000
+
+from . import geo
+
+EPOCH = pd.Timestamp("1970-01-01")
+STAY_COLS = ["imsi", "stay_seq", "start_time", "end_time", "duration_min", "lng", "lat",
+        "n_records", "district", "aoi", "dist_xita_m"]
 
 
-def _label_segments(new_user, lat, lng, w, radius_m):
-    """顺序扫描，给每个点打段号。算法里唯一必须逐点做的部分。
-    new_user[i]: 第 i 个点是不是某人的第一个点（第 0 个必须是 True）
-    w[i]:        第 i 个点代表几条原始记录（用于加权算质心）
+def find_segments(sig: pd.DataFrame, radius_m: float) -> pd.DataFrame:
+    """把每个人按时间排好的信令切成“段”：离当前段质心不超过 radius_m 就并入，否则开新段。
+
+    sig 至少要有 imsi、ts、lac_cell、lng、lat。**函数里自己排序**，不依赖调用方排好（D06 契约）：
+    按 imsi、ts，同一时刻再按 lac_cell。同一个人同一毫秒有两条不同基站的记录时（全量里有 2 组），
+    谁先谁后会改变切段结果；加上 lac_cell 决胜，结果就和输入顺序无关。
+    比到质心而不是上一个点：一串每次都走 400 米的点不会被一直并成一段（“温水煮青蛙”）。
+    内层循环用 numpy 数组和标量版 dist_m：df.iloc[i] 比 arr[i] 慢上百倍。
+    返回每段一行：imsi、t_start、t_end（秒）、lat、lng（质心）、n_records、duration_min。
     """
-    labels = np.empty(len(lat), dtype=np.int64)
-    seg, s_lat, s_lng, s_w = -1, 0.0, 0.0, 0.0
-    for i in range(len(lat)):
-        if new_user[i] or _dist_m(s_lat / s_w, s_lng / s_w, lat[i], lng[i]) > radius_m:
-            seg, s_lat, s_lng, s_w = seg + 1, 0.0, 0.0, 0.0      # 换人或走远了：开新段
-        s_lat += lat[i] * w[i]
-        s_lng += lng[i] * w[i]
-        s_w += w[i]
-        labels[i] = seg
-    return labels
-
-
-def find_segments(df: pd.DataFrame, radius_m: float = 500, min_stay_min: float = 30) -> pd.DataFrame:
-    """信令 → 段表。离当前段质心不超过 radius_m 就并入，否则开新段；
-    时长不少于 min_stay_min 分钟的段 is_stay=True，其余是经过。
-    df 至少要有 imsi、ts、lat、lng。
-    """
-    df = df.sort_values(["imsi", "ts"], ignore_index=True)
-    imsi, lat, lng = (df[c].to_numpy() for c in ("imsi", "lat", "lng"))
-
-    # 1. 连续落在同一坐标的记录必然同段，先压成一行，循环次数大幅减少
-    new_user = np.r_[True, imsi[1:] != imsi[:-1]]
-    moved = new_user | np.r_[True, (lat[1:] != lat[:-1]) | (lng[1:] != lng[:-1])]
-    starts = np.flatnonzero(moved)
-    counts = np.diff(np.r_[starts, len(df)])
-
-    # 2. 在压缩后的点上顺序扫描打段号，再展开回原始记录
-    run_seg = _label_segments(new_user[starts],
-            lat[starts], lng[starts], counts.astype(float), radius_m)
-    df["seg"] = np.repeat(run_seg, counts)
-
-    # 3. 按段汇总：质心就是段内原始记录的平均位置
-    seg = df.groupby("seg").agg(
-        imsi=("imsi", "first"),
-        t_start=("ts", "first"),
-        t_end=("ts", "last"),
-        lat=("lat", "mean"),
-        lng=("lng", "mean"),
-        n_records=("ts", "size"),
-    ).reset_index(drop=True)
-    seg["duration_min"] = (seg["t_end"] - seg["t_start"]).dt.total_seconds() / 60
-    seg["is_stay"] = seg["duration_min"] >= min_stay_min
+    df = sig.sort_values(["imsi", "ts", "lac_cell"], kind="stable")
+    imsi = df["imsi"].to_numpy()
+    t = (df["ts"] - EPOCH).dt.total_seconds().to_numpy()
+    lat, lng = df["lat"].to_numpy(), df["lng"].to_numpy()
+    rows, i, n = [], 0, len(df)
+    while i < n:
+        sum_lat, sum_lng, k, j = lat[i], lng[i], 1, i
+        while j + 1 < n and imsi[j + 1] == imsi[i]:                 # 段不跨用户
+            if geo.dist_m(sum_lat / k, sum_lng / k, lat[j + 1], lng[j + 1]) > radius_m:
+                break
+            j += 1
+            sum_lat, sum_lng, k = sum_lat + lat[j], sum_lng + lng[j], k + 1
+        rows.append((imsi[i], t[i], t[j], sum_lat / k, sum_lng / k, k))
+        i = j + 1
+    seg = pd.DataFrame(rows, columns=["imsi", "t_start", "t_end", "lat", "lng", "n_records"])
+    seg["duration_min"] = (seg["t_end"] - seg["t_start"]) / 60
     return seg
 
 
+def build_stay(sig: pd.DataFrame, settings: dict, districts: dict, aois: dict, hot) -> pd.DataFrame:
+    """停留表 dws_stay：持续不少于 stay.min_minutes 的段，补上顺序号、起止时刻、区县、商圈、到热点的距离。
 
-
-if __name__ == '__main__':
-    pass
+    hot 是热点的一行（有 lng、lat），由调用方从 dim_hotspot 取。
+    起止时刻精确到秒（与 D06 notebook 一致）；时长保留一位小数；主键 imsi + stay_seq。
+    """
+    p = settings["stay"]
+    seg = find_segments(sig, p["radius_m"])
+    stay = seg[seg["duration_min"] >= p["min_minutes"]].reset_index(drop=True)
+    stay["stay_seq"] = stay.groupby("imsi").cumcount() + 1
+    stay["start_time"] = pd.to_datetime(stay["t_start"], unit="s").dt.floor("s")
+    stay["end_time"] = pd.to_datetime(stay["t_end"], unit="s").dt.floor("s")
+    stay["duration_min"] = stay["duration_min"].round(1)
+    stay["district"] = pd.Series(geo.point_in_polygons(stay["lng"], stay["lat"], districts)).fillna("市外")
+    stay["aoi"] = geo.point_in_polygons(stay["lng"], stay["lat"], aois)
+    stay["dist_xita_m"] = geo.haversine(stay["lat"], stay["lng"], hot["lat"], hot["lng"]).round()
+    return stay[STAY_COLS]

@@ -37,8 +37,8 @@ def build_dim_cell(ods_cell: pd.DataFrame, districts: dict, aois: dict) -> pd.Da
     return dim
 
 
-def build_dim_hotspot(dwd: pd.DataFrame, dim_cell: pd.DataFrame, top_n: int = 5,
-                    name: str = "西塔", radius_m: int = 500) -> pd.DataFrame:
+def build_dim_hotspot(dwd: pd.DataFrame, dim_cell: pd.DataFrame, top_n: int,
+                    name: str, radius_m: int) -> pd.DataFrame:
     """按 D04 的做法定热点中心：连接用户数前 top_n 的站点，按用户数加权平均。
 
     为什么不用第一名站点的坐标：一座基站覆盖几百米，第一名只是那座铁塔的位置，不是人群的重心。

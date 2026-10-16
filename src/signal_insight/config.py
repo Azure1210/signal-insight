@@ -14,6 +14,9 @@
 import os
 from pathlib import Path
 
+import yaml
+
+
 # 项目根的标记文件：根目录里只要有这个文件，就能锁定项目根，
 # 不再依赖 config.py 本身所在的层级（parents 数量）。
 WORKSPACE_MARKER = "signal.workspace"
@@ -42,6 +45,8 @@ CHECKPOINT_DB = DATA_DIR / "checkpoints.db"
 
 IMAGE_DIR = PROJECT_ROOT / "image"
 
+SETTINGS_PATH = PROJECT_ROOT / "configs" / "settings.yaml"
+
 # 默认的可视化主题: viz/style/里面的文件.default, academic. business, lively
 THEME = os.environ.get("SIGNAL_THEME", "default")
 
@@ -50,3 +55,13 @@ UTC_OFFSET_HOURS = 8
 ANALYSIS_DAY = "2018-10-03"
 SOURCE_NOTE = "数据来源：沈阳移动信令样本(脱敏，2018年国庆)"
 AUTHOR = "AzureKite 1210"
+
+def load_settings(path=None) -> dict:
+    p = SETTINGS_PATH if path is None else path
+    try:
+        text = open(p, encoding='utf-8').read()
+    except UnicodeDecodeError as e:
+        raise UnicodeDecodeError(e.encoding, e.object, e.start, e.end,
+            f"{p} 不是UTF-8,需要更换编码重新读取"
+                                )
+    return  yaml.safe_load(text)

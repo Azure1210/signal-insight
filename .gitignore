@@ -27,3 +27,8 @@ __pycache__/
 Thumbs.db
 
 markdown/
+
+# ── 看板：本地运行产物 ────────────────────
+dashboard/assets/hex/
+dashboard/*.log
+dashboard/.tmp/

@@ -1,4 +1,4 @@
-# config/settings.yaml —— 业务参数的唯一来源（AGENTS.md 第 8 条）
+# configs/settings.yaml —— 业务参数的唯一来源（AGENTS.md 第 8 条）
 # 改参数改这里，不改代码；代码里不写 500 米、30 分钟这类业务数字。
 # 一律 UTF-8 保存（Windows 记事本另存为时选 UTF-8）。
 version: "1.0"
@@ -11,3 +11,19 @@ hotspot:                 # 热点：D04 定的，D06 起从这里读
 stay:                    # 停留识别（D06）
   radius_m: 500          # 按距离切段的半径：吸收乒乓切换；300–1000 米结果差别不大（D06 敏感性分析）
   min_minutes: 30        # 停留的最短时长：结果对它敏感，必须写进口径
+
+# ── D07–D08 分析口径（D07 开工时追加；上面的内容一个字不改）──────────────
+visitor:
+  evening_hour: 17        # 傍晚访客：西塔停留的结束时刻不早于 17:00
+  late_hour: 23           # 删失：23:00 以后仍在西塔，停留时长只是下限
+  near_km: 1.5            # 周边居民：过夜地离西塔不到 1.5 公里
+
+night:
+  start_hour: 0           # 过夜地：与 0:00–6:00 重叠最长的停留
+  end_hour: 6
+  min_overlap_minutes: 60 # 重叠不到 60 分钟的不算过夜地
+
+hourly:
+  min_cover_minutes: 30   # 每人每小时的位置：覆盖该小时 ≥ 30 分钟的停留优先
+privacy:
+  min_cell_users: 5       # 对外交付：少于 5 人的格子不展示
